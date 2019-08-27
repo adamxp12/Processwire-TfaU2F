@@ -1,0 +1,110 @@
+<?php
+namespace ProcessWire;
+/**
+ * TfaU2F (1.0.0)
+ * Adds FIDO/U2F as a TFA option
+ * 
+ * @author Adam Blunt
+ * 
+ * ProcessWire 3.x
+ * Copyright (C) 2011 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * 
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ * 
+ */
+require "php-u2flib-server/src/u2flib_server/U2F.php";
+class TfaU2F extends Tfa implements Module, ConfigurableModule {  
+
+   protected $u2f = null;
+
+    public function __construct() {
+        parent::__construct();
+        $this->u2f = new \u2flib_server\U2F('https://' . $this->wire('config')->httpHost); 
+            
+    }
+
+    public function init() {
+        $this->addHookBefore('Tfa::getUserSettingsInputfields', $this, 'addScripts');
+    }
+
+    public function addScripts() {
+        $this->config->scripts->add($this->wire('config')->urls->$this . "u2f-api/u2f-api-polyfill.js");
+        $this->config->scripts->add($this->wire('config')->urls->$this . "TfaU2F.js");
+	}
+    
+    public function enabledForUser(User $user, array $settings) {
+		return !empty($settings['registrations']) && $settings['enabled'] === true;
+	}
+    
+
+    public function isValidUserCode(User $user, $code, array $settings) {
+        if(!strlen($code)) return false;
+        return true; # no validation yet
+    }
+
+
+    public function ___getUserSettingsInputfields(User $user, InputfieldWrapper $fieldset, $settings) {
+		parent::___getUserSettingsInputfields($user, $fieldset, $settings);
+		
+        if ($this->enabledForUser($user, $settings)) {
+
+        } else if($this->wire('input')->requestMethod('POST')) {
+            $fieldset->new('text', 'regdata'); 
+            $fieldset->new('text', 'challenge'); 
+			
+		} else {
+						
+            $fieldset->new('checkboxes', 'conf_code', 'Added Keys')
+                ->description($this->_('Check the keys below to remove them'));
+        
+                $fieldset->new('hidden', 'appid')
+                ->attr('id', 'TfaU2F_appId')
+                ->attr('value', $this->u2f->getRegisterData()[0]->appId);
+            
+            $fieldset->new('hidden', 'challenge')
+                ->attr('id', 'TfaU2F_challenge')
+                ->attr('value', JSON_ENCODE($this->u2f->getRegisterData()[0], JSON_UNESCAPED_SLASHES));
+
+            
+
+            $fieldset->new('text', 'regdata')
+                ->attr('id', 'TfaU2F_regdata');
+
+
+            $fieldset->new('button', 'addKey', 'Enable two-factor authentication')
+                ->attr('id', 'TfaU2F_button')
+                ->attr('onclick', "TfaU2F_addkey()")
+                ->value("Add Security Key");
+
+            $fieldset->new('markup')
+                ->attr('value', "<span id='TfaU2F_msg'>Click the button to register a new security. then click/tap your security key to continue.</span>");
+        }
+	}
+    
+    public function ___processUserSettingsInputfields(User $user, InputfieldWrapper $fieldset, $settings, $settingsPrev) {
+        $settings = parent::___processUserSettingsInputfields($user, $fieldset, $settings, $settingsPrev);
+        $data = $this->u2f->doRegister(json_decode($settings['challenge']), json_decode($settings['regdata']));
+        $settings['enabled'] = false;
+        exit($data->keyHandle . $data->publicKey . $data->certificate . $data->counter);
+        // Somehow need to save this data and do it for multiple keys with the limited ProcessWire stuff
+        $this->error($settings['challenge'] . $settings['regdata']);
+    }
+
+    protected function getDefaultUserSettings(User $user) {
+		if($user) {}
+		return array(
+			'enabled' => false, 
+			'regkeys' => ''
+		);
+	}
+
+    public function saveUserSettings(User $user, array $settings) {
+		//return parent::saveUserSettings($user, $settings);
+	}
+
+}
+
+
+ ?>
