@@ -1,0 +1,3 @@
+[submodule "php-u2flib-server"]
+	path = php-u2flib-server
+	url = https://github.com/Yubico/php-u2flib-server
