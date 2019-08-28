@@ -46,8 +46,7 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule {
 
         $authreg = $this->session->authreg;
         $authreq = $this->session->authreq;
-
-
+        $this->session->authreq = null;
 
         try {
             $reg = $this->u2f->doAuthenticate(json_decode($authreq), $authreg, json_decode($code));
@@ -56,7 +55,7 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule {
             return false;
         }
 
-        return false; # no validation yet
+        return false;
     }
 
 
@@ -162,18 +161,30 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule {
         }
 
         $authreg =  [$reg];
-        $authreq = json_encode($this->u2f->getAuthenticateData($authreg), JSON_UNESCAPED_SLASHES);
         $this->session->authreg = $authreg;
-        $this->session->authreq = $authreq;
+
+        /*
+         * Check if the authreq is null. if so make a new challenge
+         * ProcessWire annoingly calls builtAuthCodeForm twice. once to build the form and a 2nd time when the user submits the form
+         * thus validation was failing as the was non-matching challanges
+         */
+        if(is_null($this->session->authreq)) {
+            $this->session->authreq = json_encode($this->u2f->getAuthenticateData($authreg), JSON_UNESCAPED_SLASHES);
+        }
+        
+        
+        
         $form = $this->modules->get('InputfieldForm');
         $form->attr('action', "./?$this->keyName=" . $this->getSessionKey(true));
-        $form->new('text', 'appid')
+        $form->new('markup')
+                ->attr('value', "You need to use your security key to login.");
+        $form->new('hidden', 'appid')
                 ->attr('id', 'TfaU2F_appId')
                 ->attr('value', $this->u2f->getRegisterData()[0]->appId);
-        $form->new('text', 'authreq')
+        $form->new('hidden', 'authreq')
                 ->attr('id', 'TfaU2F_authreq')
-                ->attr('value', $authreq);
-        $form->new('text', 'tfa_code')
+                ->attr('value', $this->session->authreq);
+        $form->new('hidden', 'tfa_code')
                 ->attr('id', 'TfaU2F_authresponse')
                 ->attr('required', 'required');
         $form->new('button', 'authKey', 'Start two-factor authentication')
