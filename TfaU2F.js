@@ -2,8 +2,6 @@ function TfaU2F_addkey() {
     
     var appId = document.getElementById('TfaU2F_appId').value;
     var challenge = JSON.parse("[" + document.getElementById('TfaU2F_challenge').value + "]");
-    var regreq = [{version: 'U2F_V2', challenge: challenge, attestation: 'direct'}];
-    console.log("Register: ", regreq);
     u2f.register(appId, challenge, [], function(data) {
         console.log("Register callback", data);
                 if(data.errorCode && data.errorCode != 0) {
@@ -17,6 +15,15 @@ function TfaU2F_addkey() {
                     
                 }
             });
+}
 
-
+function TfaU2F_authKey() {
+    var appId = document.getElementById('TfaU2F_appId').value;
+    var authreq = JSON.parse(document.getElementById('TfaU2F_authreq').value);
+    var challenge = authreq[0].challenge;
+    u2f.sign(appId, challenge, authreq, function(data) {
+        console.log("Authenticate callback", data);
+        document.getElementById('TfaU2F_authresponse').value = JSON.stringify(data);
+        form.submit();
+    });
 }
