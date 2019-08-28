@@ -1,6 +1,0 @@
-[submodule "php-u2flib-server"]
-	path = php-u2flib-server
-	url = https://github.com/Yubico/php-u2flib-server
-[submodule "u2f-api"]
-	path = u2f-api
-	url = https://github.com/mastahyeti/u2f-api
