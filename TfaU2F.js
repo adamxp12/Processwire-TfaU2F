@@ -5,7 +5,7 @@ function TfaU2F_addkey() {
     u2f.register(appId, challenge, [], function(data) {
         console.log("Register callback", data);
                 if(data.errorCode && data.errorCode != 0) {
-                    alert("registration failed with errror: " + data.errorCode);
+                    alert("registration failed with error: " + data.errorCode);
                     return;
                     
                 } else {
@@ -23,7 +23,13 @@ function TfaU2F_authKey() {
     var challenge = authreq[0].challenge;
     u2f.sign(appId, challenge, authreq, function(data) {
         console.log("Authenticate callback", data);
-        document.getElementById('TfaU2F_authresponse').value = JSON.stringify(data);
-        form.submit();
+        if(data.errorCode && data.errorCode != 0) {
+            document.getElementById('TfaU2F_error').textContent = "authentication failed with error: " + data.errorCode;
+            document.getElementById('TfaU2F_error').style.display = "block";
+        } else {
+            document.getElementById('TfaU2F_error').style.display = "none";
+            document.getElementById('TfaU2F_authresponse').value = JSON.stringify(data);
+            document.getElementById('tfaform').submit();
+        }        
     });
 }

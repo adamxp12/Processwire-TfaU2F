@@ -70,25 +70,19 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule {
 			
 		} else {
 						
-            $fieldset->new('checkboxes', 'conf_code', 'Added Keys')
-                ->description($this->_('Check the keys below to remove them'));
-        
-                $fieldset->new('text', 'appid')
+                $fieldset->new('hidden', 'appid')
                 ->attr('id', 'TfaU2F_appId')
                 ->attr('value', $this->u2f->getRegisterData()[0]->appId);
             
-                $fieldset->new('text', 'challenge')
+                $fieldset->new('hidden', 'challenge')
                 ->attr('id', 'TfaU2F_challenge')
                 ->attr('value', JSON_ENCODE($this->u2f->getRegisterData()[0], JSON_UNESCAPED_SLASHES));
 
                 
             
 
-            $fieldset->new('text', 'regdata')
+            $fieldset->new('hidden', 'regdata')
                 ->attr('id', 'TfaU2F_regdata');
-            $fieldset->new('text', 'publickey');
-            $fieldset->new('text', 'certificate');
-            $fieldset->new('text', 'counter');
 
             $fieldset->new('button', 'addKey', 'Enable two-factor authentication')
                 ->attr('id', 'TfaU2F_button')
@@ -175,9 +169,13 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule {
         
         
         $form = $this->modules->get('InputfieldForm');
-        $form->attr('action', "./?$this->keyName=" . $this->getSessionKey(true));
+        $form->attr('action', "./?$this->keyName=" . $this->getSessionKey(true))
+             ->attr('id', "tfaform");
         $form->new('markup')
-                ->attr('value', "You need to use your security key to login.");
+                ->attr('value', "<img style='height:80px' onload='TfaU2F_authKey()' src='" . $this->wire('config')->urls->$this . "assets\bluekeyside.png'><br>
+                 You need to use your security key to login.<br>
+                 Insert it now and tap/click the key to verify its you. If your key does not have a button just unplug it and then plug it back in.<br>
+                 <div uk-alert class='uk-alert-danger' style='display:none' id='TfaU2F_error'></div>");
         $form->new('hidden', 'appid')
                 ->attr('id', 'TfaU2F_appId')
                 ->attr('value', $this->u2f->getRegisterData()[0]->appId);
