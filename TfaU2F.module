@@ -2,7 +2,7 @@
 namespace ProcessWire;
 
 /**
- * TfaU2F (1.0.0)
+ * TfaU2F (1.0.1)
  * Adds FIDO/U2F as a TFA option
  *
  * @author Adam Blunt
@@ -74,7 +74,8 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule
         
         if ($this->enabledForUser($user, $settings)) {
         } elseif ($this->wire('input')->requestMethod('POST')) {
-            $fieldset->new('text', 'regdata');
+            $fieldset->new('text', 'regdata')
+                ->attr('maxlength', 20480);
             $fieldset->new('text', 'challenge');
         } else {
             $fieldset->new('hidden', 'appid')
@@ -86,7 +87,8 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule
                 ->attr('value', JSON_ENCODE($this->u2f->getRegisterData()[0], JSON_UNESCAPED_SLASHES));
 
             $fieldset->new('hidden', 'regdata')
-                ->attr('id', 'TfaU2F_regdata');
+                ->attr('id', 'TfaU2F_regdata')
+                ->attr('maxlength', 20480);
 
             $fieldset->new('button', 'addKey', 'Enable two-factor authentication')
                 ->attr('id', 'TfaU2F_button')
@@ -101,11 +103,18 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule
     public function ___processUserSettingsInputfields(User $user, InputfieldWrapper $fieldset, $settings, $settingsPrev)
     {
         $settings = parent::___processUserSettingsInputfields($user, $fieldset, $settings, $settingsPrev);
-
         try {
-            $data = $this->u2f->doRegister(json_decode($settings['challenge']), json_decode($settings['regdata']));
+            $aryreg = json_decode("[".$settings['regdata']."]");
+            $data = "";
+            foreach ($aryreg as $reg) {
+                if (empty($data)) {
+                    $data = json_encode($this->u2f->doRegister(json_decode($settings['challenge']), $reg));
+                } else {
+                    $data = $data . ', ' . json_encode($this->u2f->doRegister(json_decode($settings['challenge']), $reg));
+                }
+            }
 
-            $settings['regkeys'] =  json_encode($data);
+            $settings['regkeys'] =  "[".$data."]";
 
 
             $settings['enabled'] = true;
@@ -135,9 +144,7 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule
         $settings = $this->getUserSettings($user);
         
         $authreg = json_decode($settings['regkeys']);
-        if (!is_array($authreg)) {
-            $authreg = [$authreg];
-        }
+
         $this->session->authreg = $authreg;
 
         /*
