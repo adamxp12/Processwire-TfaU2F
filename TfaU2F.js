@@ -1,6 +1,7 @@
 function TfaU2F_addkey() {
     
     var appId = document.getElementById('TfaU2F_appId').value;
+    var regdata = document.getElementById('TfaU2F_regdata');
     var challenge = JSON.parse("[" + document.getElementById('TfaU2F_challenge').value + "]");
     u2f.register(appId, challenge, [], function(data) {
         console.log("Register callback", data);
@@ -9,9 +10,17 @@ function TfaU2F_addkey() {
                     return;
                     
                 } else {
-                    document.getElementById('TfaU2F_regdata').value = JSON.stringify(data);
-                    document.getElementById('TfaU2F_button').disabled = true;
-                    document.getElementById('TfaU2F_msg').textContent = 'Security key added. Save this page to continue';
+                    /* 
+                     * This addition would in therory allow multiple keys to work.
+                     * But the is truncation happening somewhere in processwire so this is a waste XD
+                     */
+                    if(regdata.value === "") {
+                        regdata.value = JSON.stringify(data);
+                    } else {
+                        regdata.value = regdata.value+", "+JSON.stringify(data);
+                    }
+                    
+                    document.getElementById('TfaU2F_msg').textContent = 'Security key added save this page to continue';
                     
                 }
             });

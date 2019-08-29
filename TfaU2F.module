@@ -1,57 +1,66 @@
 <?php
 namespace ProcessWire;
+
 /**
  * TfaU2F (1.0.0)
  * Adds FIDO/U2F as a TFA option
- * 
+ *
  * @author Adam Blunt
- * 
+ *
  * ProcessWire 3.x
  * Copyright (C) 2011 by Ryan Cramer
  * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
+ *
  * http://www.processwire.com
  * http://www.ryancramer.com
- * 
+ *
  */
 require "php-u2flib-server/src/u2flib_server/U2F.php";
-class TfaU2F extends Tfa implements Module, ConfigurableModule {  
+class TfaU2F extends Tfa implements Module, ConfigurableModule
+{
+    protected $u2f = null;
 
-   protected $u2f = null;
-
-    public function __construct() {
+    public function __construct()
+    {
         parent::__construct();
-        $this->u2f = new \u2flib_server\U2F('https://' . $this->wire('config')->httpHost); 
-            
+        $this->u2f = new \u2flib_server\U2F('https://' . $this->wire('config')->httpHost);
     }
 
-    public function init() {
+    public function init()
+    {
         $this->addHookBefore('Tfa::getUserSettingsInputfields', $this, 'addScripts');
         $this->addHookBefore('Tfa::render', $this, 'addScripts');
     }
     
 
-    public function addScripts() {
+    public function addScripts()
+    {
         $this->config->scripts->add($this->wire('config')->urls->$this . "u2f-api/u2f-api-polyfill.js");
         $this->config->scripts->add($this->wire('config')->urls->$this . "TfaU2F.js");
-	}
+    }
     
-    public function enabledForUser(User $user, array $settings) {
-		return $settings['enabled'] === true;
-	}
+    public function enabledForUser(User $user, array $settings)
+    {
+        return $settings['enabled'] === true;
+    }
     
 
-    public function isValidUserCode(User $user, $code, array $settings) {
-        if(!strlen($code)) return false;
+    public function isValidUserCode(User $user, $code, array $settings)
+    {
+        if (!strlen($code)) {
+            return false;
+        }
 
         $authreg = $this->session->authreg;
         $authreq = $this->session->authreq;
         $this->session->authreq = null;
+        $this->session->authreg = null;
+
 
         try {
             $reg = $this->u2f->doAuthenticate(json_decode($authreq), $authreg, json_decode($code));
             return true;
-        } catch( Exception $e ) { 
+        } catch (Exception $e) {
             return false;
         }
 
@@ -59,27 +68,22 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule {
     }
 
 
-    public function ___getUserSettingsInputfields(User $user, InputfieldWrapper $fieldset, $settings) {
-		parent::___getUserSettingsInputfields($user, $fieldset, $settings);
-		
+    public function ___getUserSettingsInputfields(User $user, InputfieldWrapper $fieldset, $settings)
+    {
+        parent::___getUserSettingsInputfields($user, $fieldset, $settings);
+        
         if ($this->enabledForUser($user, $settings)) {
-
-        } else if($this->wire('input')->requestMethod('POST')) {
-            $fieldset->new('text', 'regdata'); 
-            $fieldset->new('text', 'challenge'); 
-			
-		} else {
-						
-                $fieldset->new('hidden', 'appid')
+        } elseif ($this->wire('input')->requestMethod('POST')) {
+            $fieldset->new('text', 'regdata');
+            $fieldset->new('text', 'challenge');
+        } else {
+            $fieldset->new('hidden', 'appid')
                 ->attr('id', 'TfaU2F_appId')
                 ->attr('value', $this->u2f->getRegisterData()[0]->appId);
             
-                $fieldset->new('hidden', 'challenge')
+            $fieldset->new('hidden', 'challenge')
                 ->attr('id', 'TfaU2F_challenge')
                 ->attr('value', JSON_ENCODE($this->u2f->getRegisterData()[0], JSON_UNESCAPED_SLASHES));
-
-                
-            
 
             $fieldset->new('hidden', 'regdata')
                 ->attr('id', 'TfaU2F_regdata');
@@ -92,69 +96,48 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule {
             $fieldset->new('markup')
                 ->attr('value', "<span id='TfaU2F_msg'>Click the button to register a new security. then click/tap your security key to continue.</span>");
         }
-	}
+    }
     
-    public function ___processUserSettingsInputfields(User $user, InputfieldWrapper $fieldset, $settings, $settingsPrev) {
+    public function ___processUserSettingsInputfields(User $user, InputfieldWrapper $fieldset, $settings, $settingsPrev)
+    {
         $settings = parent::___processUserSettingsInputfields($user, $fieldset, $settings, $settingsPrev);
 
         try {
-        $data = $this->u2f->doRegister(json_decode($settings['challenge']), json_decode($settings['regdata']));
-        
+            $data = $this->u2f->doRegister(json_decode($settings['challenge']), json_decode($settings['regdata']));
 
-        $settings['keyhandle'] = $data->keyHandle;
-        $settings['publickey'] = $data->publicKey;
-        $settings['certificate'] = $data->certificate;
-        $settings['counter'] = $data->counter;
-        $settings['enabled'] = true;
-        $settings['challenge'] = null;
-        $settings['regdata'] = null;
-        $this->message("Success! Your account is now secured with two-factor authentication");
-        } catch( Exception $e ) {
+            $settings['regkeys'] =  json_encode($data);
+
+
+            $settings['enabled'] = true;
+            $settings['challenge'] = null;
+            $settings['regdata'] = null;
+            $this->message("Success! Your account is now secured with two-factor authentication");
+        } catch (Exception $e) {
             $settings['enabled'] = false;
             $this->error("That did not work " . $e);
-        } 
+        }
 
         return $settings;
     }
 
 
-    protected function getDefaultUserSettings(User $user) {
-		if($user) {}
-		return array(
-			'enabled' => false, 
-            'regkeys' => '',
-            'keyhandle' => '',
-            'publickey' => '',
-            'certificate' => '',
-            'counter' => '',
-		);
+    protected function getDefaultUserSettings(User $user)
+    {
+        return array(
+            'enabled' => false,
+            'regkeys' => ''
+        );
     }
 
-    public function buildAuthCodeForm() {
+    public function buildAuthCodeForm()
+    {
         $user = $this->getUser();
         $settings = $this->getUserSettings($user);
         
-        $object = [
-            'keyhandle' => $settings['keyhandle'],
-            'publickey' => $settings['publickey'],
-            'certificate' => $settings['certificate'],
-            'counter' => $settings['counter']
-        ];
-        $reg = new \u2flib_server\Registration;
-        if (isset($object['publickey'])) {
-            $reg->publicKey = $object['publickey'];
+        $authreg = json_decode($settings['regkeys']);
+        if (!is_array($authreg)) {
+            $authreg = [$authreg];
         }
-        if (isset($object['certificate'])) {
-            $reg->certificate = $object['certificate'];
-        }
-        if (isset($object['counter'])) {
-            $reg->counter = $object['counter'];
-        }
-        if (isset($object['keyhandle'])) {
-            $reg->keyHandle = $object['keyhandle'];
-        }
-
-        $authreg =  [$reg];
         $this->session->authreg = $authreg;
 
         /*
@@ -162,8 +145,9 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule {
          * ProcessWire annoingly calls builtAuthCodeForm twice. once to build the form and a 2nd time when the user submits the form
          * thus validation was failing as the was non-matching challanges
          */
-        if(is_null($this->session->authreq)) {
-            $this->session->authreq = json_encode($this->u2f->getAuthenticateData($authreg), JSON_UNESCAPED_SLASHES);
+
+        if (is_null($this->session->authreq)) {
+            $this->session->authreq = json_encode($this->u2f->getAuthenticateData($this->session->authreg), JSON_UNESCAPED_SLASHES);
         }
         
         
@@ -191,10 +175,5 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule {
                 ->value("Use Security Key");
         $form->new('submit', 'tfa_submit');
         return $form;
-
     }
-
 }
-
-
- ?>
