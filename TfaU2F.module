@@ -180,7 +180,6 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule
                 ->attr('id', 'TfaU2F_button')
                 ->attr('onclick', "TfaU2F_authKey()")
                 ->value("Use Security Key");
-        $form->new('submit', 'tfa_submit');
         return $form;
     }
 }
