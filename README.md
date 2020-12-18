@@ -10,4 +10,4 @@ The code is kind of messy. I had no PHP linter/code formatter to clean it up. Bu
 The Yubikey Security Key Graphic was sourced from Pixabay https://pixabay.com/illustrations/google-secure-key-u2f-security-key-3598222/
 
 ## Demo
-![Demo](https://bluntlabimg.azureedge.net/images/2019/08/28/2019-08-28_12-06-18.gif)
+![Demo](https://adamxp12blob.blob.core.windows.net/sharex-share/2019-08-28_12-06-18.gif)
