@@ -2,7 +2,7 @@
 namespace ProcessWire;
 
 /**
- * TfaU2F (1.0.2)
+ * TfaU2F (1.0.3)
  * Adds FIDO/U2F as a TFA option
  *
  * @author Adam Blunt
@@ -28,7 +28,11 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule
 
     public function init()
     {
-        parent::init();
+        if($config->version('3.0.165')) {
+            // 3.0.165 and newer have an init() function in the Tfa class. previous versions did not
+            // Strangely this init() function while not needed before is now required in new versions even if you dont use the auto-enable feature
+            parent::init();
+        }
         $this->addHookBefore('Tfa::getUserSettingsInputfields', $this, 'addScripts');
         $this->addHookBefore('Tfa::render', $this, 'addScripts');
     }
