@@ -28,7 +28,7 @@ class TfaU2F extends Tfa implements Module, ConfigurableModule
 
     public function init()
     {
-        if($config->version('3.0.165')) {
+        if(config()->version('3.0.165')) {
             // 3.0.165 and newer have an init() function in the Tfa class. previous versions did not
             // Strangely this init() function while not needed before is now required in new versions even if you dont use the auto-enable feature
             parent::init();
